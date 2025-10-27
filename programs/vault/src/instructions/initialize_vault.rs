@@ -5,7 +5,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
 
-#[Accounts]
+#[derive(Accounts)]
 pub struct InitalizeVault<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -48,12 +48,14 @@ pub struct InitalizeVault<'info> {
 impl<'info> InitalizeVault<'info> {
     pub fn initialize(
         &mut self,
-        amount: u64,
+        target: u64,
         vault_state_bump: u8,
         mint_pubkey: Pubkey,
     ) -> Result<()> {
-        self.target = amount;
-        self.vault_bump = vault_state_bumpl;
-        self.token = mint_pubkey;
+        self.vault_state.target = target;
+        self.vault_state.vault_bump = vault_state_bump;
+        self.vault_state.token = mint_pubkey;
+
+        Ok(())
     }
 }
