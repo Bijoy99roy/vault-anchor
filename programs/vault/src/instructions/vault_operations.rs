@@ -70,59 +70,46 @@ impl<'info> VaultOperations<'info> {
     pub fn deposit(&self, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::InvalidTokenAmount);
 
-        self.transfer_tokens(
-            &self.user_mint_token_account.to_account_info(),
-            &self.vault.to_account_info(),
-            &self.user.to_account_info(),
-            None,
-            amount,
-        )?;
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_accounts = TransferChecked {
+            from: self.user_mint_token_account.to_account_info(),
+            to: self.vault.to_account_info(),
+            mint: self.mint.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
 
-        if self.vault.amount >= self.vault_state.target {
-            let user_wallet_address = self.user.key();
-            let user_mint_token_account_address = self.user_mint_token_account.key();
-            let seeds = &[
-                b"vault_state",
-                user_wallet_address.as_ref(),
-                user_mint_token_account_address.as_ref(),
-                &[self.vault_state.vault_bump],
-            ];
-            let signer_seeds = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
-            self.transfer_tokens(
-                &self.vault.to_account_info(),
-                &self.user_mint_token_account.to_account_info(),
-                &self.vault_state.to_account_info(),
-                Some(signer_seeds),
-                self.vault.amount,
-            )?;
-        }
-        Ok(())
+        transfer_checked(cpi_ctx, amount, self.mint.decimals)
     }
 
     pub fn withdraw(&self) -> Result<()> {
         require!(
-            self.vault_state.target >= self.vault.amount,
+            self.vault_state.target <= self.vault.amount,
             VaultError::SavingGoalNotReached,
         );
 
         let user_wallet_address = self.user.key();
-        let user_mint_token_account_address = self.user_mint_token_account.key();
+        let mint = self.mint.key();
         let seeds = &[
             b"vault_state",
             user_wallet_address.as_ref(),
-            user_mint_token_account_address.as_ref(),
+            mint.as_ref(),
             &[self.vault_state.vault_bump],
         ];
 
         let signer_seeds = &[&seeds[..]];
 
-        self.transfer_tokens(
-            &self.vault.to_account_info(),
-            &self.user_mint_token_account.to_account_info(),
-            &self.vault_state.to_account_info(),
-            Some(signer_seeds),
-            self.vault.amount,
-        )
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_accounts = TransferChecked {
+            from: self.vault.to_account_info(),
+            to: self.user_mint_token_account.to_account_info(),
+            mint: self.mint.to_account_info(),
+            authority: self.vault_state.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+        transfer_checked(cpi_ctx, self.vault.amount, self.mint.decimals)
     }
 }
