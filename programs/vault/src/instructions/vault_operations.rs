@@ -43,30 +43,6 @@ pub struct VaultOperations<'info> {
 }
 
 impl<'info> VaultOperations<'info> {
-    fn transfer_tokens(
-        &self,
-        from: &AccountInfo<'info>,
-        to: &AccountInfo<'info>,
-        authority: &AccountInfo<'info>,
-        signer_seeds: Option<&[&[&[u8]]]>,
-        amount: u64,
-    ) -> Result<()> {
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_accounts = TransferChecked {
-            from: from.clone(),
-            to: to.clone(),
-            mint: self.mint.to_account_info(),
-            authority: authority.clone(),
-        };
-
-        let cpi_ctx = match signer_seeds {
-            Some(seeds) => CpiContext::new_with_signer(cpi_program, cpi_accounts, seeds),
-            None => CpiContext::new(cpi_program, cpi_accounts),
-        };
-
-        transfer_checked(cpi_ctx, amount, self.mint.decimals)
-    }
-
     pub fn deposit(&self, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::InvalidTokenAmount);
 
